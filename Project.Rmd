@@ -1,0 +1,301 @@
+---
+title: "Project"
+author: "Mark & Narine"
+date: "April 25, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Project name: What conditions motivate people at work?
+
+#Dependent variable: 
+#quantity (q):motivation at work (1-10 measurement units)
+
+#Independent variables:
+#Factor A: gender (g):   2 levels (male, female)
+#Factor B: method (m):   2 levels (1-assembled), 2-dis-assembled)
+#Factor C: lovelego (l): 2 levels (0-no, 1-yes)
+
+#we get 2^3=8 different combinations, we will use 5 experiments for each combination, so we will have 8*5=40 sample size
+
+
+```{r}
+project<-read.csv("data_project.csv")
+View(project)
+head(project)
+```
+
+#Notation:
+#male +
+#female -
+#assembled +
+#dis-assembled -
+#likes +
+#dislike -
+
+#combinations:
+# A(gender)   B(method)   C(lovelego)  Yates Notation       Motivation/quantity
+1      -          -            -            (1)                   18
+2      +          -            -             a                    16
+3      -          +            -             b                    19
+4      +          +            -             ab                   21
+5      -          -            +             c                    29
+6      +          -            +             ac                   23
+7      -          +            +             bc                   43
+8      +          +            +             abc                  32
+
+#Main effect for A (gender)
+#A=(a+ab+ac+abc)/4n-((1)+b+c+bc)/4n= (16+21+23+32)/4*5-(18+19+29+43)/4*5
+#A=92/20-109/20=-0.85
+
+#A=-0.85, that means motivation decreases, so in out experiment females are more motivated than males, however in our experiment gender is not significant variable, as the difference is little.
+
+#Main effect for B (method)
+#B=ab+abc+b+bc/4n-((1)+a+b+ac)/4n=(21+32+19+43)/20-(18+16+19+23)/20
+#B=115/20-76/20=1.95
+
+#B=1.95, motivation increases while using the first method of our experiment, so as Dan Ariel's team discovered in our experimants also motivation increases when we keep the legos assembled. 
+
+
+#Main effect for C (lovelego)
+#C=c+ac+bc+abc/4n-((1)+a+b+ab)/4n=29+23+43+32/20-18+16+19+21/20
+#C=127/20-74/20=2.65
+
+#This factor whether participant likes/dislikes lego has the most significant effect on motivation. Those participants who likes to assemble lego are more motivated then those who dislikes lego. And we see that this variable has significant empact on motivation.
+
+#Interaction AB (gender+method)
+#AB=abc+ab+c+(1)/4n-(bc+b+ac+a)/4n=(32+21+29+18)/20-(43+19+23+16)/20
+#AB=100/20-101/20=-0.05
+
+#there is no interaction between these two variables, too too little
+
+#Interaction AC (gender+lovelego)
+#AC=b+ac+abc+(1)/4n-(a+ab+bc+c)/4n=19+23+32+18/20-16+21+43+29/20
+#AC=92/20-109/20=-0.85
+
+#very low interaction between gender and lovelego variables
+
+#Interaction term BC
+#BC=a+bc+abc+(1)/20-b+ab+c+ac/20=16+43+32+18/20-19+21+29+23/20
+#BC=109/20-92/20=0.85
+
+#again we have low interaction between method and love of lego.
+
+#Interaction term ABC (gender+method+lovelego)
+#ABC=b+c+a+abc/4n-(1)+ab+ac+bc/4n=19+29+16+32/20-(18+21+23+43)/20
+#ABC=96/20-105/20=-0.45
+
+#so, in our model interactions are not significant.
+
+```{r}
+aggregate(project$q, by=list(project$g, project$m, project$l), FUN="sum")
+```
+
+
+#with aggregate function we get the same numbers: sum of each combination (8 comintaions, 5 replcates)
+
+#let's do ANOVA and see the results
+#we made our independent variables as factors.
+
+```{r}
+project$g<-factor(project$g, levels=c(0, 1))
+project$m<-factor(project$m, levels=c(1, 2))
+project$l<-factor(project$l, levels=c(0, 1))
+head(project)
+model<-aov(q~g*m*l, data=project)
+summary(model)
+```
+
+#Anova test shows that two of main effects: method and lovelego are significant, as p.values<0.05(alpha), so we rejet the NULL hypothesis
+#Gender and interaction terms are not significant, as their p.values>alpha, we fail to reject the NULL hypothesis
+
+#let's look at the contribution of each effect in SST
+
+```{r}
+aov_sum<-as.data.frame(unclass(summary(model)))
+aov_sum$Percentage<-aov_sum$Sum.Sq/sum(aov_sum$Sum.Sq)
+aov_sum$Percentage
+library(ggplot2)
+ggplot(aov_sum, aes(x=rownames(aov_sum),y=aov_sum$Percentage))+
+  geom_bar(stat="identity")+
+  geom_text(aes(label=round(100*aov_sum$Percentage,1)), size=3.5, hjust=0.5, vjust=-0.5,col="blue")+
+  labs(x="Main effects", y="Percentage in total SS", title="Percentage of each effect in SST")
+```
+
+#we see the empact of main effects and interactions, 
+#gender and method interection is o, method and lovelego 2.3, our significant main effects are method: 7.9% and lovelego: 23.8%
+#also residuals: 60%, that means 60% we will not be able to explain motivation by any of these variables.
+
+#let's run regression model with -1, 1 coded variables
+
+```{r}
+project1<-project
+project1$g<-ifelse(project1$g==0, -1, 1)
+project1$m<-ifelse(project1$m==1, -1, 1)
+project1$l<-ifelse(project1$l==0, -1, 1)
+project1
+model_lm<-lm(q~g+m+l+m:l, data=project1)
+summary(model_lm)
+```
+#Hypothesis
+#H0: Betta1=0  (an intercept only model)
+#H1: Betta1!=0( there is a sifnificant relationship between x and y)
+#we have two significant variables: method and lovelego.
+
+#let's check residuals for normality
+
+```{r}
+qqnorm(model_lm$residuals)
+qqline(model_lm$residuals)
+shapiro.test(model_lm$residuals)
+```
+#points should be near to the line, and it seems like that, but let's also check it by using shapiro test
+#p.value(0.61)>alpha, so there is no violation of normality assumption. The errors of the model are normally distributed.
+
+#visualiztaion by boxplots
+#first let's visualize motivation by methods 
+```{r}
+ggplot(project, aes(x=m, y=q))+geom_boxplot()+stat_summary(fan.y=mean, 
+              col="orange", size=0.5)+ggtitle("Quantity by methods")
+```
+#as we see first method's mean is more than second method's, with first method participants are more motivated, as in this case their assembled legos are not destroyed in front of their eyes.
+
+#visualization motivation by gender
+
+```{r}
+ggplot(project, aes(x=g, y=q))+geom_boxplot()+stat_summary(fan.y=mean, 
+              col="orange", size=0.5)+ggtitle("Motivation by gender")
+```
+#females are more motivated than males.
+
+#the last bosplot is motivatiion by love oe lego.
+
+```{r}
+ggplot(project, aes(x=l, y=q))+geom_boxplot()+stat_summary(fan.y=mean, 
+              col="orange", size=0.5)+ggtitle("Motivation by love of lego")
+```
+#participants who likes lego are more motivated than those who dislike. 
+
+#Regression analysis
+#The goal of regression analyses is:
+#to predict the value of response variable: motivation at work
+#and explain the relationship between independent variables and motivation
+
+
+#linear regresion model with categorical independent variables
+
+```{r}
+mod_g<-lm(q~g, data=project)
+summary(mod_g)
+coef(mod_g)
+```
+#we see that g1(male) is less motivated compare with g0(female), as the difference is negative 0.8, however this difference is not significant, as p.value>alpha.
+
+```{r}
+mod_m<-lm(q~m, data=project)
+summary(mod_m)
+coef(mod_m)
+```
+#we see that while using m2(method 2) participants are less motivated compared with method 1, as the difference is negative -1.5, and this difference also is not significant, as p.value>alpha.
+
+```{r}
+mod_l<-lm(q~l, data=project)
+summary(mod_l)
+coef(mod_l)
+```
+
+#we see that l1 is 2.6, that means the participants, who like lego are more motivated compared with participants who dislike lego (l0). The difference is significant as p.value<alpha. 
+
+
+#Regression assumptions
+#let's create a dataframe with the values we need to analyse the assumtions, that are connected with errors
+#we need residuals, fitted values and regressor variable(x)
+
+```{r}
+model3<-lm(q~g+m+l, data=project)
+names(model3)
+df<-data.frame(Residuals=model3$residuals, Fitted=model3$fitted.values, 
+               q=project$q)
+df
+```
+#checking assumptions with plot: 
+#1. is linear function, 
+#2. equality of variances
+#residuals against predicted values(fiited values)
+
+```{r}
+library(ggplot2)
+ggplot(df, aes(x=Fitted, y=Residuals))+geom_point()+
+  geom_hline(yintercept=0, col="red", size=1.5)
+
+```
+#variance assumption is not violated 
+#errors are normally distributed, as half of points are above the line, half are below the line
+#normality assumption was checked above.
+
+#let's check of our model has points with high leverage(extreme predictor x values).
+#leverage is high, if hi>3(p/n)....hi=the sum of leverages
+#p is the # of regression coefficients(# of independent variables(3) +1(slope)), p=4
+#n=sample size=40
+#3*(4/40)=0.3
+#or
+#2*(4/40)=0.2
+
+```{r}
+lev<-hatvalues(model3)
+lev
+avg<-mean(lev)
+#we don't have point with high leverage
+lev>3*avg
+#in this case we have points with high leverage
+lev>2*avg
+```
+
+#in our model we don't have points with high leverage.
+
+#let's also check outlier points.
+
+```{r}
+stand_res<-rstandard(model3)
+stand_res
+stand_res>3
+abs(stand_res)>3
+```
+
+#reuslt: we don't have outliers
+
+#detecting influential points with cooks distance
+#if D(i)>0.5, then we may have influential points, if D(i)>1, quite likely we will have influntial points. 
+
+```{r}
+cd<-cooks.distance(model3)
+round(cd,4)
+```
+
+#results show that we have no point greater than 0.5, that means we have no influetntial points in our model.
+
+
+#let's look again on our model
+
+```{r}
+model3<-lm(q~g+m+l, data=project)
+summary(model3)
+```
+
+#Multiple R-squared: 0.3399
+#that means THE PERCENTAGE OF THE TOTAL VARIATION THAT IS EXPLAINED BY THE REGRESSOR IS 34%
+.
+#F-test for overall significance
+#according to our model, p.value(0.001691)<alpha(overall our model is significant)
+#hypothesis:
+#Ho: betta1=betta2=betta3=0 (all the coefficiets of our model are equal to 0, intercept only model)
+#H1: at least one betta in not 0
+# so we reject the NULL hypothesis, and claim that at least one coefficient of our model is not equal to 0.
+
+#interpriting coefficients:
+#change in gender brings to -0.8 unit decrease in motivation(females' motivation is higher than males')
+#change in method brings to -1.5 unit decrease in motivation(participants of experiment are more motivated by first method)
+#change in lovelego brings to 2.6 units increase in motivation, that means participants' motivation is higher when they like legos.
